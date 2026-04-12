@@ -126,4 +126,9 @@ public final class MPMCVarQueue<E> implements VarQueue<E> {
 		long diff = t - h;
 		return diff <= 0 ? 0 : diff > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) diff;
 	}
+
+	@Override
+	public int capacity() {
+		return capacity;
+	}
 }

@@ -36,4 +36,9 @@ public final class ClqAdapter<E> implements VarQueue<E> {
     public int size() {
         return q.size();
     }
+
+    @Override
+    public int capacity() {
+        return q.size();
+    }
 }

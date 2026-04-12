@@ -39,6 +39,42 @@ publishing {
     }
 }
 
+tasks.register('perfTest', Test) {
+    description = "Runs only performance tests"
+    group = "verification"
+
+    useJUnitPlatform {
+        includeTags "perf"
+    }
+
+    // Show logs for perf tests
+    testLogging {
+        showStandardStreams = true
+        events "passed", "skipped", "failed"
+    }
+
+    // Optional: use same classpath as normal tests
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+}
+
 test {
-    useJUnitPlatform()
+    useJUnitPlatform() {
+        if (project.hasProperty("perf")) {
+            includeTags "perf"
+        } else {
+            excludeTags "perf"
+        }
+    }
+    if (project.hasProperty("perf")) {
+        testLogging {
+            showStandardStreams = true
+            events "passed", "skipped", "failed"
+        }
+    }
+    jvmArgs += "-Xshare:off"
+    jvmArgs += '--enable-native-access=ALL-UNNAMED'
+    jvmArgs += [
+            "-javaagent:${configurations.testRuntimeClasspath.find { it.name.contains('mockito-core') }}"
+    ]
 }
