@@ -6,5 +6,6 @@ public interface VarQueue<E> {
 	E peek();
 	boolean isEmpty();
 	int size();
+	int capacity();
 }
 
