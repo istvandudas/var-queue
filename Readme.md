@@ -35,7 +35,54 @@ The natural evolution is to extend the collection set — for example, maps or o
 but there is no fixed roadmap yet. These will likely be the next areas of exploration.
 Plus adding public maven publishing.
 
-# Performance test results
+# Benchmarks
+
+Two harnesses are provided:
+
+## 1. JMH benchmarks (rigorous, preferred)
+
+Reproducible, statistically-valid throughput benchmarks built on
+[JMH](https://github.com/openjdk/jmh) 1.36 via the
+[`me.champeau.jmh`](https://github.com/melix/jmh-gradle-plugin) Gradle
+plugin. Compares var-queue against:
+
+- `org.jctools:jctools-core:4.0.6` — the classic Unsafe-backed JCTools queues.
+- `org.jctools:jctools-core-jdk11:4.0.6` — the VarHandle-backed JCTools queues
+  (apples-to-apples with var-queue).
+- `java.util.concurrent.ArrayBlockingQueue` — bounded JDK baseline.
+- `java.util.concurrent.ConcurrentLinkedQueue` — unbounded JDK baseline.
+
+Run commands:
+
+```bash
+# Full benchmark suite (forks=3, 5x1s warmup, 10x1s measurement; ~minutes per benchmark)
+./gradlew jmh
+
+# Smoke run (single fork, 2 warmup iterations, 3 measurement iterations)
+./gradlew jmh -PjmhFork=1 -PjmhWarmup=2 -PjmhIterations=3
+
+# Restrict to a single benchmark
+./gradlew jmh -PjmhInclude='.*Spsc.*'
+
+# Override the impl matrix at the command line
+./gradlew jmh -PjmhInclude='.*Spsc.*' \
+  -Pjmh.pattern=impl=varqueue,jctools-vh
+```
+
+Results are written to `build/reports/jmh/results.json` in JMH's
+standard JSON format — feed into whatever visualizer you prefer.
+
+Benchmark classes live under
+`src/jmh/java/org/collection/queue/bench/`:
+
+- `SpscThroughput` — 1 producer + 1 consumer (`@Group("spsc")`).
+- `MpmcThroughput` — 2 producers + 2 consumers (`@Group("mpmc")`).
+- `PollOnlyBenchmark` — single-thread drain baseline; included so results
+  are directly comparable to the legacy custom-harness "Poll throughput"
+  numbers below.
+
+## 2. Legacy custom harness (kept for historical continuity)
+
 Performance is always compared against ConcurrentLinkedQueue (CLQ).
 Each test measures:
 - 1M offer operations
