@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id 'me.champeau.jmh' version '0.7.3'
 }
 
 group = 'org.collection'
@@ -26,6 +27,12 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // JMH benchmark comparison baselines.
+    // jctools-core        -> Unsafe-based (legacy, default JCTools queues)
+    // jctools-core-jdk11  -> VarHandle-based (apples-to-apples comparison with var-queue)
+    jmhImplementation 'org.jctools:jctools-core:4.0.6'
+    jmhImplementation 'org.jctools:jctools-core-jdk11:4.0.6'
 }
 
 publishing {
@@ -77,4 +84,41 @@ test {
     jvmArgs += [
             "-javaagent:${configurations.testRuntimeClasspath.find { it.name.contains('mockito-core') }}"
     ]
+}
+
+// ---------------------------------------------------------------------------
+// JMH configuration
+// ---------------------------------------------------------------------------
+// Benchmarks live in src/jmh/java and are isolated from the main `test` source
+// set so that `./gradlew build` and `./gradlew test` remain fast.
+//
+// Usage:
+//   Full run:   ./gradlew jmh
+//   Smoke run:  ./gradlew jmh -PjmhInclude='.*Spsc.*' -PjmhFork=1 -PjmhWarmup=2 -PjmhIterations=3
+//   Results:    build/reports/jmh/results.json
+// ---------------------------------------------------------------------------
+jmh {
+    // Matches the existing test-task JVM args so numbers are comparable.
+    jvmArgsAppend = [
+            '-Xshare:off',
+            '--enable-native-access=ALL-UNNAMED',
+            '-XX:+AlwaysPreTouch'
+    ]
+
+    // Defensible defaults. Individual runs can override via -P properties.
+    fork              = project.findProperty('jmhFork')?.toInteger()        ?: 3
+    warmupIterations  = project.findProperty('jmhWarmup')?.toInteger()      ?: 5
+    iterations        = project.findProperty('jmhIterations')?.toInteger()  ?: 10
+    timeOnIteration   = project.findProperty('jmhTime')                     ?: '1s'
+    warmup            = project.findProperty('jmhWarmupTime')               ?: '1s'
+
+    if (project.hasProperty('jmhInclude')) {
+        includes = [project.getProperty('jmhInclude')]
+    }
+
+    resultFormat = 'JSON'
+    resultsFile  = project.file("${buildDir}/reports/jmh/results.json")
+
+    includeTests = false
+    failOnError  = true
 }
